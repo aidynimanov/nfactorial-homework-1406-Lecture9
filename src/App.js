@@ -1,7 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import "./App.css";
+const DataFromLocal = window.localStorage.getItem('ItemAdded');
 
+const getFromLocalStorage = (newItem) => {
+  if (DataFromLocal) {
+    JSON.parse(DataFromLocal);
+    console.log(DataFromLocal);
+  }
+  else {
+    return newItem;
+  }
+} 
 // button-group
 const buttons = [
   {
@@ -22,28 +32,44 @@ const toDoItems = [
   {
     key: uuidv4(),
     label: "Have fun",
+    important: false,
   },
   {
     key: uuidv4(),
     label: "Spread Empathy",
+    important: false,
   },
   {
     key: uuidv4(),
     label: "Generate Value",
+    important: false,
   },
 ];
+
 
 // helpful links:
 // useState crash => https://blog.logrocket.com/a-guide-to-usestate-in-react-ecb9952e406c/
 function App() {
+
+  getFromLocalStorage();
   const [itemToAdd, setItemToAdd] = useState("");
   //arrow declaration => expensive computation ex: API calls
-  const [items, setItems] = useState(() => toDoItems);
+  const [items, setItems] = useState(JSON.parse(localStorage.getItem('itemAdded')) || []);
 
   const [filterType, setFilterType] = useState("");
 
+  const [changeInput, setChangeInput] = useState("");
+
+  const [searchedValue, setSearchedValue] = useState("");
+
+  // const giveEventTarget = (event) => console.log(event);
+
   const handleChangeItem = (event) => {
     setItemToAdd(event.target.value);
+  };
+
+  const handleChangeInput = (event) => {
+    setChangeInput(event.target.value);
   };
 
   const handleAddItem = () => {
@@ -53,13 +79,21 @@ function App() {
     // setItems(oldItems);
 
     // not mutating !CORRECT!
-    setItems((prevItems) => [
-      { label: itemToAdd, key: uuidv4() },
-      ...prevItems,
-    ]);
+    const newItem = { label: itemToAdd, key: uuidv4()};
+    // const getItemFromLocalStorage = () => {
+    //   window.localStorage.getItem('itemAdded');
+    // }
+    setItems((prevItems) => [newItem, ...prevItems]
+    );
 
+    
     setItemToAdd("");
+    
   };
+
+  useEffect(() => {
+    window.localStorage.setItem('itemAdded',JSON.stringify(items));
+  }, [items])
 
   const handleItemDone = ({ key }) => {
     //first way
@@ -77,32 +111,57 @@ function App() {
     //   } else return item;
     // });
 
+
+
+
     //second way updated
     setItems((prevItems) =>
       prevItems.map((item) => {
         if (item.key === key) {
           return { ...item, done: !item.done };
         } else return item;
+
       })
     );
   };
-
+  // const handleDeletedItems = setItems((prevItems)=>{
+  //   prevItems.map(item=>item.key===)
+  // })
   const handleFilterItems = (type) => {
     setFilterType(type);
   };
+
+  const searchedItems = (e) => {
+    setSearchedValue(e.target.value);
+  };
+// Deleting Items ////
+/////////////////////////
+  const deleteItems = (item, key) => {
+    setItems((prevItems)=>prevItems.filter(item=>{if(item.key!==key) {
+      return item}
+      
+    }))
+    window.localStorage.setItem('item',JSON.stringify(item));
+  }
 
   const amountDone = items.filter((item) => item.done).length;
 
   const amountLeft = items.length - amountDone;
 
+  const searchedFilteredItems = items.filter((item) =>
+    item.label.includes(searchedValue)
+  );
+
   const filteredItems =
     !filterType || filterType === "all"
-      ? items
+      ? searchedFilteredItems
       : filterType === "active"
-      ? items.filter((item) => !item.done)
-      : items.filter((item) => item.done);
+      ? searchedFilteredItems.filter((item) => !item.done)
+      : searchedFilteredItems.filter((item) => item.done);
 
+      
   return (
+    // Below is toDo HEADER//
     <div className="todo-app">
       {/* App-header */}
       <div className="app-header d-flex">
@@ -118,6 +177,7 @@ function App() {
           type="text"
           className="form-control search-input"
           placeholder="type to search"
+          onChange={searchedItems}
         />
         {/* Item-status-filter */}
         <div className="btn-group">
@@ -135,13 +195,34 @@ function App() {
           ))}
         </div>
       </div>
+      {/*  Filter by input text */}
 
       {/* List-group */}
+      {/* <ul>
+        {items.map((item) => {
+          return (
+            <button>
+              <div
+                onClick={() => {
+                  console.log(item);
+
+                }}
+              >
+                {item.label}
+              </div>
+            </button>
+          );
+        })}
+      </ul> */}
       <ul className="list-group todo-list">
         {filteredItems.length > 0 &&
           filteredItems.map((item) => (
             <li key={item.key} className="list-group-item">
-              <span className={`todo-list-item${item.done ? " done" : ""}`}>
+              <span
+                className={`todo-list-item${item.done ? " done" : ""} ${
+                  item.important ? "important" : ""
+                }`}
+              >
                 <span
                   className="todo-list-item-label"
                   onClick={() => handleItemDone(item)}
@@ -152,6 +233,20 @@ function App() {
                 <button
                   type="button"
                   className="btn btn-outline-success btn-sm float-right"
+                  onClick={() => {
+                    setItems(
+                      items.map((itemInsideMap) => {
+                        if (item.key === itemInsideMap.key) {
+                          return {
+                            label: itemInsideMap.label,
+                            important: !itemInsideMap.important,
+                            key: itemInsideMap.key,
+                          };
+                        }
+                        return itemInsideMap;
+                      })
+                    );
+                  }}
                 >
                   <i className="fa fa-exclamation" />
                 </button>
@@ -159,7 +254,7 @@ function App() {
                 <button
                   type="button"
                   className="btn btn-outline-danger btn-sm float-right"
-                >
+                  onClick = {()=>{deleteItems(item, item.key)}}>
                   <i className="fa fa-trash-o" />
                 </button>
               </span>
